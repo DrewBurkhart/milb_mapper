@@ -52,7 +52,7 @@ struct LocationsAPIResponse {
 const BING_MAPS_API_KEY: &str = "AvMjRjCSlLHs7MX4Fa9dAMPsGxtOMSfuKxExT4-Fb22YuDSCurIzZd2x_Iu8O3qu";
 
 fn log_distance(distance: f64, duration: u32) {
-    println!("Distance: {} km", distance);
+    println!("Distance: {} mi", distance * 0.621371);
     println!("Duration: {} minutes", duration);
 }
 
