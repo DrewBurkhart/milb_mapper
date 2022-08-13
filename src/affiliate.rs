@@ -1,4 +1,28 @@
-Club,Affiliate,Level,City,State
+use tabled::Tabled;
+
+#[derive(Debug)]
+pub struct AffiliateRecord {
+    pub level: String,
+    pub team: String,
+    pub city: String,
+    pub state: String,
+}
+
+#[derive(Tabled)]
+pub struct Affiliate {
+    pub level: String,
+    pub name: String,
+    pub city: String,
+    pub state: String,
+    pub distance: f64,
+    pub duration: u32,
+}
+
+pub async fn get_affiliates(
+    value: &str,
+) -> Result<Vec<AffiliateRecord>, Box<dyn std::error::Error>> {
+    // TODO: Move to CSV file
+    let csv = "Club,Affiliate,Level,City,State
 Orioles,Tides,AAA,Norfolk,VA
 Orioles,Baysox,AA,Bowie,MD
 Orioles,IronBirds,High A,Aberdeen,MD
@@ -148,4 +172,20 @@ Giants,River Cats,AAA,Sacramento,CA
 Giants,Flying Squirrels,AA,Richmond,VA
 Giants,Emeralds,High A,Eugene,OR
 Giants,Giants,Low A,San Jose,CA
-Giants,ACL Giants,Rookie,Scottsdale,AZ
+Giants,ACL Giants,Rookie,Scottsdale,AZ    
+    ";
+    let mut rdr = csv::Reader::from_reader(csv.as_bytes());
+    let mut values = Vec::new();
+    for result in rdr.records() {
+        let record = result?;
+        if record[0] == *value {
+            values.push(AffiliateRecord {
+                level: record[2].to_string(),
+                team: record[1].to_string(),
+                city: record[3].to_string(),
+                state: record[4].to_string(),
+            });
+        }
+    }
+    Ok(values)
+}

@@ -1,289 +1,18 @@
 extern crate csv;
-use querystring::stringify;
-use reqwest;
-use reqwest::header::{ACCEPT, CONTENT_TYPE};
-use serde::{Deserialize, Serialize};
 use std::env;
+use tabled::Table;
 
-async fn get_affiliates(
-    value: &str,
-) -> Result<Vec<(String, String, String, String)>, Box<dyn std::error::Error>> {
-    // TODO: Move to CSV file
-    let csv = "Club,Affiliate,Level,City,State
-Orioles,Tides,AAA,Norfolk,VA
-Orioles,Baysox,AA,Bowie,MD
-Orioles,IronBirds,High A,Aberdeen,MD
-Orioles,Shorebirds,Low A,Salisbury,MD
-Orioles,GCL Orioles,Rookie,Sarasota,FL
-Red Sox,Red Sox,AAA,Worcester,MA
-Red Sox,Sea Dogs,AA,Portland,ME
-Red Sox,Drive,High A,Greenville,SC
-Red Sox,Red Sox,Low A,Salem,MA
-Red Sox,GCL Red Sox,Rookie,Port Myers,FL
-Yankees,RailRiders,AAA,Scranton,PA
-Yankees,Patriots,AA,Bridgewater Township,NJ
-Yankees,Renegades,High A,Wappingers Falls,NY
-Yankees,Tarpons,Low A,Tampa,FL
-Yankees,GCL Yankess,Rookie,Tampa,FL
-Rays,Bulls,AAA,Durham,NC
-Rays,Biscuits,AA,Montgomery,AL
-Rays,Hot rods,High A,Bowling Green,
-Rays,RiverDogs,Low A,Charleston,SC
-Rays,GCL Rays,Rookie,Port Charlotte,FL
-Blue Jays,Bisons,AAA,Buffalo,NY
-Blue Jays,Fisher Cats,AA,Manchester,NH
-Blue Jays,Canadians,High A,Vancouver,BC
-Blue Jays,Blue Jays,Low A,Dunedin,FL
-Blue Jays,GCL Blue Jays,Rookie,Dunedin,FL
-White Sox,Knights,AAA,Charlotte,NC
-White Sox,Barons,AA,Birmingham,AL
-White Sox,Dash,High A,Winston-Salem,NC
-White Sox,Cannon Ballers,Low A,Kannapolis,NC
-White Sox,ACL White Sox,Rookie,Glendale,AZ
-Guardians,Clippers,AAA,Columbus,OH
-Guardians,RubberDucks,AA,Akron,OH
-Guardians,Captains,High A,Eastlake,OH
-Guardians,Hillcats,Low A,Lynchburg,VA
-Guardians,ACL Guardians,Rookie,Goodyear,AZ
-Tigers,Mud Hens,AAA,Toledo,OH
-Tigers,SeaWolves,AA,Erie,PA
-Tigers,Whitecaps,High A,Comstock Park,MI
-Tigers,Flying Tigers,Low A,Lakeland,FL
-Tigers,GCL Tigers,Rookie,Lakeland,FL
-Royals,Storm Chasers,AAA,Omaha,NE
-Royals,Naturals,AA,Springdale,AK
-Royals,River Bandits,High A,Davenport,IA
-Royals,Fireflies,Low A,Columbia,SC
-Royals,ACL Royals,Rookie,Surprise,AZ
-Twins,Saints,AAA,St Paul,MN
-Twins,Wind Surge,AA,Wichita,KS
-Twins,Kernels,High A,Cedar Rapids,IA
-Twins,Mighty Mussels,Low A,Fort Myers,FL
-Twins,GCL Twins,Rookie,Fort Myers,FL
-Astros,Space Cowboys,AAA,Sugar Land,TX
-Astros,Hooks,AA,Corpus Christi,TX
-Astros,Tourists,High A,Asheville,NC
-Astros,Woodpeckers,Low A,Fayetteville,NC
-Astros,GCL Astros,Rookie,West Palm Beach,FL
-Angels,Bees,AAA,Salt Lake City,UT
-Angels,Trash Pands,AA,Madison,AL
-Angels,Dust Devils,High A,Pasco,WA
-Angels,66ers,Low A,San Bernardino,CA
-Angels,ACL Angels,Rookie,Tempe,AZ
-Athletics,Aviators,AAA,Las Vegas,NV
-Athletics,RockHounds,AA,Midland,TX
-Athletics,Lugnuts,High A,Lansing,MI
-Athletics,Ports,Low A,Stockton,CA
-Athletics,ACL Athletics,Rookie,Mesa,AZ
-Mariners,Rainiers,AAA,Tacoma,QA
-Mariners,Travelers,AA,Little Rock,AK
-Mariners,Aquasox,High A,Everett,WA
-Mariners,Nuts,Low A,Modesto,CA
-Mariners,ACL Mariners,Rookie,Peoria,AZ
-Rangers,Express,AAA,Round Rock,TX
-Rangers,RoughRiders,AA,Frisco,TX
-Rangers,Crawdads,High A,Hickory,NC
-Rangers,Wood Ducks,Low A,Kinston,NC
-Rangers,ACL Rangers,Rookie,Surprise,AZ
-Braves,Stripers,AAA,Gwinett,
-Braves,Braves,AA,,MI
-Braves,Braves,High A,Rome,GA
-Braves,GreenJackets,Low A,Augusta,GA
-Braves,GCL Braves,Rookie,,FL
-Marlins,Jumbo Shrimp,AAA,Jacksonville,FL
-Marlins,Blue Wahoos,AA,Pensacola,FL
-Marlins,Sky Carp,High A,Beloit,WI
-Marlins,Hammerheads,Low A,Jupiter,FL
-Marlins,GCL Marlins,Rookie,,FL
-Mets,Mets,AAA,Syracuse,NY
-Mets,Rumble Ponies,AA,Binghamton,NY
-Mets,Cyclones,High A,Brooklyn,NY
-Mets,Mets,Low A,St Lucie,FL
-Mets,GCL Mets,Rookie,St Lucie,FL
-Phillies,IronPigs,AAA,Allentown,PA
-Phillies,Fighting Phils,AA,Reading,PA
-Phillies,BlueClaws,High A,Lakewood,NJ
-Phillies,Threshers,Low A,Clearwater,FL
-Phillies,GCL Phillies,Rookie,Clearwater,FL
-Nationals,Red Wings,AAA,Rochester,NY
-Nationals,Senators,AA,Harrisburg,PA
-Nationals,Blue Rocks,High A,Wilmington,NC
-Nationals,Nationals,Low A,Fredricksburg,VA
-Nationals,GCL Nationals,Rookie,West Palm Beach,FL
-Cubs,Cubs,AAA,Des Moines,IA
-Cubs,Smokies,AA,Kodak,TN
-Cubs,Cubs,High A,South Bend,IN
-Cubs,Pelicans,Low A,Myrtle Beach,SC
-Cubs,ACL Cubs,Rookie,Mesa,AZ
-Reds,Bats,AAA,Louisville,KY
-Reds,Lookouts,AA,Chattanooga,TN
-Reds,Dragons,High A,Dayton,OH
-Reds,Tortugas,Low A,Daytona,FL
-Reds,ACL Reds,Rookie,Goodyear,AZ
-Brewers,Sounds,AAA,Nashville,TN
-Brewers,Shuckers,AA,Biloxi,MI
-Brewers,Timber Rattlers,High A,Appleton,WI
-Brewers,Mudcats,Low A,Zebulon,NC
-Brewers,ACL Brewers,Rookie,Phoenix,AZ
-Pirates,Indians,AAA,Indianapolis,IN
-Pirates,Curve,AA,Altoona,
-Pirates,Grasshoppers,High A,Greensboro,
-Pirates,Marauders,Low A,Bradenton,FL
-Pirates,FCL Pirates,Rookie,Bradenton,FL
-Cardinals,Redbirds,AAA,Memphis,TN
-Cardinals,Cardinals,AA,Springfield,MO
-Cardinals,Chiefs,High A,Peoria,IL
-Cardinals,Cardinals,Low A,Palm Beach,FL
-Cardinals,FCL Cardinals,Rookie,Palm Beach,FL
-Diamondbacks,Aces,AAA,Reno,NV
-Diamondbacks,Sod Poodles,AA,Amarillo,TX
-Diamondbacks,Hops,High A,Hillsboro,OR
-Diamondbacks,Rawhide,Low A,Visalia,CA
-Diamondbacks,ACL Diamondbacks,Rookie,Phoenix,AZ
-Rockies,Isotopes,AAA,Albuquerque,NM
-Rockies,Yard Goats,AA,Hartford,CT
-Rockies,Indians,High A,Spokane,WA
-Rockies,Grizzlies,Low A,Fresno,CA
-Rockies,ACL Rockies,Rookie,Scottsdale,AZ
-Dodgers,Dodgers,AAA,Oklahoma City,OK
-Dodgers,Drillers,AA,Tulsa,OK
-Dodgers,Loons,High A,Midland,MI
-Dodgers,Quakes,Low A,Rancho Cucamonga,CA
-Dodgers,ACL Dodgers,Rookie,Glendale,AZ
-Padres,Chihuahuas,AAA,El Paso,TX
-Padres,Missions,AA,San Antonio,TX
-Padres,TinCaps,High A,Fort Wayne,IN
-Padres,Storm Chasers,Low A,Lake Elsinore,CA
-Padres,ACL Padres,Rookie,Peoria,AZ
-Giants,River Cats,AAA,Sacramento,CA
-Giants,Flying Squirrels,AA,Richmond,VA
-Giants,Emeralds,High A,Eugene,OR
-Giants,Giants,Low A,San Jose,CA
-Giants,ACL Giants,Rookie,Scottsdale,AZ    
-    ";
-    let mut rdr = csv::Reader::from_reader(csv.as_bytes());
-    let mut values = Vec::new();
-    for result in rdr.records() {
-        let record = result?;
-        if record[0] == *value {
-            println!("{:?}", &record);
-            values.push((
-                record[1].to_string(),
-                record[2].to_string(),
-                record[3].to_string(),
-                record[4].to_string(),
-            ));
-        }
-    }
-    Ok(values)
-}
+use crate::{
+    affiliate::{get_affiliates, Affiliate},
+    location::get_coords,
+    route::get_distance,
+};
 
-// LOCATION API
-
-#[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug)]
-struct Point {
-    coordinates: Vec<f64>,
-}
-
-#[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug)]
-struct LocationResource {
-    point: Point,
-}
-
-#[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug)]
-struct LocationResourceSet {
-    estimatedTotal: u32,
-    resources: Vec<LocationResource>,
-}
-
-#[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug)]
-struct LocationsAPIResponse {
-    resourceSets: Vec<LocationResourceSet>,
-}
-
-async fn get_coords(address: String) -> (f64, f64) {
-    // Format address line
-    let mut address_string = stringify(vec![("addressLine", &address)]);
-    address_string.pop();
-
-    // Craft URL
-    let url = format!(
-        "http://dev.virtualearth.net/REST/v1/Locations/US/{}?",
-        address_string
-    );
-    let params = stringify(vec![("maxReults", "1"), ("key", BING_MAPS_API_KEY)]);
-
-    // Make request
-    let client = reqwest::Client::new();
-    let res = client
-        .get(&format!("{}?{}", url, params))
-        .header(ACCEPT, "application/json")
-        .header(CONTENT_TYPE, "application/json")
-        .send()
-        .await
-        .unwrap();
-
-    // Parse response
-    let body = res.text().await.unwrap();
-    let response: LocationsAPIResponse = serde_json::from_str(&body).unwrap();
-    let coords = &response.resourceSets[0].resources[0].point.coordinates;
-    (coords[0], coords[1])
-}
-
-// ROUTES API
-
-#[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug)]
-struct RouteResource {
-    travelDistance: f64,
-    travelDuration: u32,
-}
-
-#[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug)]
-struct RouteResourceSet {
-    estimatedTotal: u32,
-    resources: Vec<RouteResource>,
-}
-
-#[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug)]
-struct RoutesAPIResponse {
-    resourceSets: Vec<RouteResourceSet>,
-}
+mod affiliate;
+mod location;
+mod route;
 
 const BING_MAPS_API_KEY: &str = "AvMjRjCSlLHs7MX4Fa9dAMPsGxtOMSfuKxExT4-Fb22YuDSCurIzZd2x_Iu8O3qu";
-
-async fn get_distance(wp_1: (f64, f64), wp_2: (f64, f64)) -> (f64, u32) {
-    // Craft URL
-    let url = "http://dev.virtualearth.net/REST/v1/Routes";
-    let params = stringify(vec![
-        ("wayPoint.1", &format!("{},{}", wp_1.0, wp_1.1)),
-        ("waypoint.2", &format!("{},{}", wp_2.0, wp_2.1)),
-        ("key", BING_MAPS_API_KEY),
-    ]);
-
-    // Make request
-    let client = reqwest::Client::new();
-    let res = client
-        .get(&format!("{}?{}", url, params))
-        .header(ACCEPT, "application/json")
-        .header(CONTENT_TYPE, "application/json")
-        .send()
-        .await
-        .unwrap();
-
-    // Parse response
-    let body = res.text().await.unwrap();
-    let response: RoutesAPIResponse = serde_json::from_str(&body).unwrap();
-    let distance = response.resourceSets[0].resources[0].travelDistance;
-    let duration = response.resourceSets[0].resources[0].travelDuration;
-    (distance, duration)
-}
 
 #[tokio::main]
 async fn main() {
@@ -299,27 +28,32 @@ async fn main() {
         Ok(affiliates_list) => {
             for affiliate in affiliates_list {
                 affiliate_coords
-                    .push(get_coords(format!("{}, {}", &affiliate.2, &affiliate.3)).await);
+                    .push(get_coords(format!("{}, {}", &affiliate.city, &affiliate.state)).await);
             }
         }
-        Err(_) => println!("Error"),
+        Err(e) => println!("Error {:?}", e),
     }
 
     // Table to hold values
-    let mut table = Vec::new();
+    let mut teams: Vec<Affiliate> = Vec::new();
 
     // Get distance and duration from Bing Maps API
     for (i, coord) in affiliate_coords.iter().enumerate() {
         for (j, coord_2) in affiliate_coords.iter().enumerate() {
             if i != j {
                 let distance = get_distance(*coord, *coord_2).await;
-                table.push((
-                    affiliates.as_ref().unwrap()[i].1.clone(),
-                    affiliates.as_ref().unwrap()[j].1.clone(),
-                    distance.0,
-                    distance.1,
-                ));
+                teams.push(Affiliate {
+                    level: affiliates.as_ref().unwrap()[i].level.clone(),
+                    name: affiliates.as_ref().unwrap()[j].team.clone(),
+                    city: affiliates.as_ref().unwrap()[j].city.clone(),
+                    state: affiliates.as_ref().unwrap()[j].state.clone(),
+                    distance: distance.0,
+                    duration: distance.1,
+                });
             }
         }
     }
+
+    let table = Table::new(teams).to_string();
+    println!("{}", table);
 }
