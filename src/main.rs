@@ -12,7 +12,7 @@ mod affiliate;
 mod location;
 mod route;
 
-const BING_MAPS_API_KEY: &str = "AvMjRjCSlLHs7MX4Fa9dAMPsGxtOMSfuKxExT4-Fb22YuDSCurIzZd2x_Iu8O3qu";
+const BING_MAPS_API_KEY: String = env::var("BING_MAPS_API_KEY").unwrap();
 
 #[tokio::main]
 async fn main() {
